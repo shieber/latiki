@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<title></title>
+</head>
+
+<!--
+throbber:
+http://upload.wikimedia.org/wikipedia/commons/d/d2/Spinning_wheel_throbber.gif
+license:
+http://creativecommons.org/licenses/by-sa/2.5/
+trhobber-stop.gif (derived from above)
+
+
+-->
+
+<body>
+<h1></h1>
+
+<img src="Spinning_wheel_throbber.gif"/>
+
+<form method="post" action="/cgi/">
+<textarea name="body">
+</textarea>
+<textarea name="abstract">
+</textarea>
+<input type="text" name="title">
+<input type="text" name="date">
+<input type="text" name="style">
+<input type="text" name="authors">
+
+<input type="SUBMIT" value="submit">
+</form>
+
+
+<script type="text/javascript">
+
+var allvals = window.parent.getAll();
+
+document.forms[0]['body'].value = allvals[0];
+document.forms[0]['title'].value = allvals[1];
+document.forms[0]['authors'].value = allvals[2];
+document.forms[0]['style'].value = allvals[3];
+document.forms[0]['abstract'].value = allvals[4];
+document.forms[0]['date'].value = allvals[5];
+
+
+document.forms[0].submit();
+
+
+
+</script>
+
+
+</body> </html>
