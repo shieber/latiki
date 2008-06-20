@@ -1,0 +1,3 @@
+#!/bin/sh
+APPDIR=`dirname $0`;
+java  -cp "$APPDIR/src:$APPDIR/bin:/home/latiki/dl/gwt-linux-1.4.61/gwt-user.jar:/home/latiki/dl/gwt-linux-1.4.61/gwt-dev-linux.jar" com.google.gwt.dev.GWTShell -out "$APPDIR/www" -noserver "$@" http://localhost:8111/www/edu.harvard.eecs.Latiki/Latiki.html?repoid=demopaper1 ;

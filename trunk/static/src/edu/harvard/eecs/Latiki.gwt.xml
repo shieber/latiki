@@ -1,0 +1,10 @@
+<module>
+
+	<!-- must recompile this after edits to use -noserver shell, i think                 -->
+	<inherits name='com.google.gwt.user.User'/>
+	<inherits name='com.google.gwt.json.JSON'/>
+	<inherits name='com.google.gwt.http.HTTP'/>
+	<!-- Specify the app entry point class.                   -->
+	<entry-point class='edu.harvard.eecs.client.Latiki'/>
+  
+</module>
