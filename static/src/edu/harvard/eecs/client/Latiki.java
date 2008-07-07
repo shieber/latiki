@@ -36,6 +36,11 @@ import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.ui.Tree;
+import com.google.gwt.user.client.ui.FormPanel;
+import com.google.gwt.user.client.ui.FormSubmitCompleteEvent;
+import com.google.gwt.user.client.ui.FormSubmitEvent;
+import com.google.gwt.user.client.ui.FormHandler;
+import com.google.gwt.user.client.ui.FileUpload;
 import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.DialogBox;
@@ -132,6 +137,9 @@ public class Latiki implements EntryPoint {
 	String currentRevision = null;
 
 	Label fileLabel = null;
+    
+        FormPanel formPanel = null;
+        FileUpload fupload = null;
 
 	String userName = "";
 
@@ -160,12 +168,12 @@ public class Latiki implements EntryPoint {
 	 return pair[1].toString();
 	 }-*/;
 
-	public native void defineSetBodyMethod() /*-{
-	 var savethis = this;
-	 $wnd.setBody = function(st) {
-	 return savethis.@edu.harvard.eecs.client.Latiki::setBody(Ljava/lang/String;)(st);
-	 }                  
-	 }-*/;
+// 	public native void defineSetBodyMethod() /*-{
+// 	 var savethis = this;
+// 	 $wnd.setBody = function(st) {
+// 	 return savethis.@edu.harvard.eecs.client.Latiki::setBody(Ljava/lang/String;)(st);
+// 	 }                  
+// 	 }-*/;
 
 	public native void defineGetAllMethod() /*-{
 	 var savethis = this;
@@ -727,6 +735,46 @@ public class Latiki implements EntryPoint {
 		}
 	}
 
+    public FormPanel makeFormPanel() {
+	formPanel = new FormPanel();
+	formPanel.setAction("/upload/");
+
+	formPanel.setEncoding(FormPanel.ENCODING_MULTIPART);
+	formPanel.setMethod(FormPanel.METHOD_POST);
+	
+	HorizontalPanel uploadPanel = new HorizontalPanel();		
+	formPanel.setWidget(uploadPanel);
+	
+	fupload = new FileUpload();
+	fupload.setName("docfile");
+	uploadPanel.add(fupload);
+	
+	Button uploadButton = new Button("Upload", new ClickListener() {
+		public void onClick(Widget sender) {
+		    formPanel.submit();
+		}
+	    });
+	uploadPanel.add(uploadButton);
+
+	formPanel.addFormHandler(new FormHandler() {
+		public void onSubmit(FormSubmitEvent event) {
+		            if (fupload.getFilename().endsWith(".docx")) {
+				// fixme: do more checking.
+				alert("Latiki does not support .docx files. Please use Word's 'Save as...'"+
+				      "feature to save this file as a .doc and upload that.");
+				event.setCancelled(true);
+			    }
+		}
+		public void onSubmitComplete(FormSubmitCompleteEvent event) {
+		    String result = event.getResults();
+		    if (result.length() > 0) {
+			setBody(result); // fixme: catch errors!
+		    }
+		}
+	    });
+	return formPanel;
+    }
+
 	public void start(String username) {
 		userName = username;
 		contentTabs = new TabPanel();
@@ -738,15 +786,8 @@ public class Latiki implements EntryPoint {
 		latexpanel.add(textArea);
 
 		uploadDisc = new DisclosurePanel("Upload");
-		HorizontalPanel uploadPanel = new HorizontalPanel();
-		uploadDisc.add(uploadPanel);
-		Element uploadIframe = DOM.createIFrame();
-		DOM.setElementProperty(uploadIframe, "id", "ulframe");
-		DOM.setElementProperty(uploadIframe, "name", "ulframe");
-		DOM.setElementProperty(uploadIframe, "width", "600");
-		DOM.setElementProperty(uploadIframe, "height", "100");
-		DOM.setElementProperty(uploadIframe, "src", "/upload");
-		DOM.appendChild(uploadPanel.getElement(), uploadIframe);
+		
+		uploadDisc.add(makeFormPanel());
 
 		latexpanel.add(uploadDisc);
 
@@ -794,7 +835,7 @@ public class Latiki implements EntryPoint {
 		DOM.appendChild(pdfpanel.getElement(), iframe);
 
 		defineGetAllMethod();
-		defineSetBodyMethod();
+		//		defineSetBodyMethod();
 
 		contentTabs.addTabListener(new TabListener() {
 			public void onTabSelected(SourcesTabEvents sender, int tabIndex) {
