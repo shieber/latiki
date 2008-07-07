@@ -289,8 +289,8 @@ class Upload:
     @cherrypy.expose
     def index(self, docfile=None):
         """ convert doc to latex """
-        content = None
-        cpgre = re.compile(r'\\clearpage.*')        
+        content = ""
+        cpgre = re.compile(r'\\clearpage.*') # FIXME: move this into the doc2latex function
         if docfile != None:
             # insert file procesing code here
             dirname = tempfile.mkdtemp()
@@ -300,13 +300,9 @@ class Upload:
             texname = os.path.splitext(docname)[0]+".tex"
             latex = open(texname,'r').read()
             latex = cpgre.sub("", latex)
-            latex = latex.replace(r'\textquotesingle',"'")
-            content = latex.replace(r'\endinput','')
-            content = urllib.quote(content)
-
-        output = str(Template(file = open(os.path.join(BASEDIR, "upload.html")),
-                            searchList = [{"content": content}]))
-        return output
+            latex = latex.replace(r'\textquotesingle',"'") # FIXME: move this into the doc2latex function
+            content = latex.replace(r'\endinput','') # FIXME: move this into the doc2latex function
+        return content
 
 class Cgi:
     """ cgi """
