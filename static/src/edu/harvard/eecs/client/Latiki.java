@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-import com.google.gwt.user.client.HTTPRequest;
 import java.util.HashMap;
 
 import java.util.Iterator;
@@ -31,7 +30,11 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
-import com.google.gwt.user.client.ResponseTextHandler;
+import com.google.gwt.http.client.RequestBuilder;
+import com.google.gwt.http.client.RequestException;
+import com.google.gwt.http.client.RequestCallback;
+import com.google.gwt.http.client.Request;
+import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.ui.Tree;
 import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.DisclosurePanel;
@@ -281,37 +284,47 @@ public class Latiki implements EntryPoint {
 	 * object. swiped from GWT's JSON.java. (c) 2006 google
 	 * 
 	 */
-	private class JSONResponseTextHandler implements ResponseTextHandler {
-		public void onCompletion(String responseText) {
+	private class JSONHandler implements RequestCallback {
+	    public void onError(Request request, java.lang.Throwable exception) {
+		alert("unexpected error in JSONHandler: " + request + " exception " + exception);
+	    }
+	    public void onResponseReceived(Request request, Response response) {
+		String responseText = response.getText();
 			try {
-				JSONValue jsonValue = JSONParser.parse(responseText);
-				displayJSONObject(jsonValue);
+			    JSONValue jsonValue = JSONParser.parse(responseText);
+			    displayJSONObject(jsonValue);
 			} catch (JSONException e) {
-				displayError(responseText);
+			    displayError(responseText);
 			}
-		}
+	    }
 	}
 
 	private class RevisionListAndCurrentRevisionHandler implements
-			ResponseTextHandler {
-		public void onCompletion(String responseText) {
-			try {
-				JSONValue jsonValue = JSONParser.parse(responseText);
-				JSONArray jsonArray;
-				if ((jsonArray = jsonValue.isArray()) == null) {
+			RequestCallback {
+	    public void onError(Request request, java.lang.Throwable exception) {
+		alert("unexpected error in RevisionListAndCurrentRevisionHandler: " + request 
+		      + " exception " + exception);
+	    }
+
+	    public void onResponseReceived(Request request, Response response) {
+		String responseText = response.getText();
+		try {
+		    JSONValue jsonValue = JSONParser.parse(responseText);
+		    JSONArray jsonArray;
+		    if ((jsonArray = jsonValue.isArray()) == null) {
 					alert("v parse error");
 					return;
-				}
-				displayRevisionList(jsonArray);
-				if (jsonArray.size() > 0) {
-					// if there are any existing revisions, try loading oneq
-					loadRevision(null);
-				}
+		    }
+		    displayRevisionList(jsonArray);
+		    if (jsonArray.size() > 0) {
+			// if there are any existing revisions, try loading oneq
+			loadRevision(null);
+		    }
 
-			} catch (JSONException e) {
-				alert("revision list parse failed");
-			}
+		} catch (JSONException e) {
+		    alert("revision list parse failed");
 		}
+	    }
 	}
 
 //	private class LoadTextHandler implements ResponseTextHandler {
@@ -322,8 +335,14 @@ public class Latiki implements EntryPoint {
 //		}
 //	}
 
-	private class CompareHandler implements ResponseTextHandler {
-		public void onCompletion(String responseText) {
+	private class CompareHandler implements RequestCallback {
+	    public void onError(Request request, java.lang.Throwable exception) {
+		alert("unexpected error in CompareHandler: " + request + " exception " + exception);
+	    }
+
+	    public void onResponseReceived(Request request, Response response) {
+		String responseText = response.getText();
+
 			if (responseText.equals("fail")) {
 				alert("compare failed.");
 			} else {
@@ -361,8 +380,14 @@ public class Latiki implements EntryPoint {
 		}
 	}
 
-	private class SaveHandler implements ResponseTextHandler {
-		public void onCompletion(String responseText) {
+	private class SaveHandler implements RequestCallback {
+	    public void onError(Request request, java.lang.Throwable exception) {
+		alert("unexpected error in SaveHandler: " + request 
+		      + " exception " + exception);
+	    }
+
+	    public void onResponseReceived(Request httpRequest, Response httpResponse) {
+		String responseText = httpResponse.getText();
 			JSONObject response;
 			JSONObject result;
 			if ((response = JSONParser.parse(responseText).isObject()) == null) {
@@ -406,6 +431,20 @@ public class Latiki implements EntryPoint {
 			}
 		}
 	}
+    
+    private boolean makeHTTPPOST(String url, String data, RequestCallback callback) {
+	try {
+	    RequestBuilder rb = new RequestBuilder(RequestBuilder.POST, url);
+	    rb.setHeader("Content-Type", "application/x-www-form-urlencoded");
+	    rb.sendRequest(data, callback);
+	    return true;
+	}
+	catch (RequestException e) {
+	    alert("Request failed with exception " + e); // fixme: return an error code!
+	    return false;
+	}
+    }
+
 
 	private void loadRevision(String number) {
 		String params = "repoid=" + encodeURIComponent(getRepoId());
@@ -420,9 +459,7 @@ public class Latiki implements EntryPoint {
 		if (!confirmDataLoss()) {
 			return;
 		}
-		
-		HTTPRequest
-				.asyncPost(GETREVISION_URL, params, new GetRevisionHandler());
+		makeHTTPPOST(GETREVISION_URL, params, new GetRevisionHandler());
 
 	}
 
@@ -461,8 +498,13 @@ public class Latiki implements EntryPoint {
 
 	}
 
-	private class GetRevisionHandler implements ResponseTextHandler {
-		public void onCompletion(String responseText) {
+	private class GetRevisionHandler implements RequestCallback {
+	    public void onError(Request request, java.lang.Throwable exception) {
+		alert("unexpected error in GetRevisionHandler: " + request + " exception " + exception);
+	    }
+	    public void onResponseReceived(Request httpRequest, Response httpResponse) {
+		String responseText = httpResponse.getText();
+
 			JSONObject response;
 			if ((response = JSONParser.parse(responseText).isObject()) == null) {
 				alert("could not parse revision: " + responseText);
@@ -617,7 +659,7 @@ public class Latiki implements EntryPoint {
 	public void loadRevisionListAndCurrentRevision() {
 		revisionPanel.clear();
 		// fixme: should be POST!
-		HTTPRequest.asyncPost(REVISIONLIST_URL, "repoid="
+		makeHTTPPOST(REVISIONLIST_URL, "repoid="
 				+ encodeURIComponent(getRepoId()),
 				new RevisionListAndCurrentRevisionHandler());
 	}
@@ -626,9 +668,9 @@ public class Latiki implements EntryPoint {
 	public void loadFileTree() {
 		fileTree.clear();
 		// fixme: should be POST!
-		HTTPRequest.asyncPost(FILELIST_URL, "repoid="
+		makeHTTPPOST(FILELIST_URL, "repoid="
 				+ encodeURIComponent(getRepoId()),
-				new JSONResponseTextHandler());
+				new JSONHandler());
 	}
 
 	/**
@@ -647,20 +689,26 @@ public class Latiki implements EntryPoint {
 			String params = "repoid="
 			    + encodeURIComponent(getRepoId());
 			//alert("calling makerepository with params: " + params);
-			HTTPRequest.asyncPost(MAKEREPOSITORY_URL, params,
+			makeHTTPPOST(MAKEREPOSITORY_URL, params,
 					new StartupMakeRepositoryHandler(this));
 		}
 
 	}
 
-	private class StartupMakeRepositoryHandler implements ResponseTextHandler {
+	private class StartupMakeRepositoryHandler implements RequestCallback {
 		Latiki latiki_;
 
 		public StartupMakeRepositoryHandler(Latiki latiki) {
 			latiki_ = latiki;
 		}
 
-		public void onCompletion(String responseText) {
+
+	    public void onError(Request request, java.lang.Throwable exception) {
+		alert("unexpected error in StartupMakeRepositoryHandler: " + request + " exception " + exception);
+	    }
+	    public void onResponseReceived(Request request, Response response) {
+		String responseText = response.getText();
+
 			if (responseText.equals("new") || responseText.equals("exists")) {
 				DialogBox dlg = new UsernameDialog(latiki_);
 				dlg.center();
@@ -805,8 +853,7 @@ public class Latiki implements EntryPoint {
 				}
 				String params = "repoid=" + encodeURIComponent(getRepoId())
 						+ "&fromrev=" + crev + "&torev=" + currentRevision;
-				HTTPRequest
-						.asyncPost(COMPARE_URL, params, new CompareHandler());
+				makeHTTPPOST(COMPARE_URL, params, new CompareHandler());
 			}
 		});
 		compareButton.setWidth("30px");
@@ -834,7 +881,7 @@ public class Latiki implements EntryPoint {
 						+ "&currentRevision=" + currentRevision + "&user="
 						+ userName; // fixme: make settable
 				// logArea.setText(params);
-				HTTPRequest.asyncPost(SAVE_URL, params, new SaveHandler());
+				makeHTTPPOST(SAVE_URL, params, new SaveHandler());
 			}
 		});
 		leftPanel.add(saveButton);

@@ -19,7 +19,7 @@
 """ simple web server for tex converter """
 
 # FIXME: update this for your setup
-BASEDIR = "/home/latiki/dogfood"
+BASEDIR = "/home/latiki/googlecode/latiki/"
 DATADIR = BASEDIR + "/data/"
 TEMPLATESDIR = BASEDIR + "/templates/"
 
@@ -27,14 +27,13 @@ L_KEY_PREFIX = "__L__"
 L_KEY_USER = L_KEY_PREFIX + "USER"
 L_KEY_DATE = L_KEY_PREFIX + "DATE"
 
-
 REQSDIRNAME = "reqs"
 from Cheetah.Template import Template
 
 import os, sys, subprocess, tempfile, time, shutil, urllib, re
 import cPickle
 
-sys.path.append('cpy_hack/build/lib')
+sys.path.append('third_party/cpy/build/lib')
 import cherrypy, simplejson
 safeNameRe = re.compile("^[a-zA-Z0-9_.-]+$")
 
@@ -103,6 +102,8 @@ def getLatestRevisionNumber(repoid):
     assert os.path.exists(repodir)
     mnum = -1
     for fname in os.listdir(repodir):
+        if fname == ".svn": 
+            continue # ignore svn's spoor
         vnum = int(fname)
         if vnum > mnum:
             mnum = vnum
@@ -174,7 +175,7 @@ class RepoStuff:
         assert os.path.exists(repodir)
 
         encoder = simplejson.JSONEncoder()
-        vlist = [int(ver) for ver in os.listdir(repodir)]
+        vlist = [int(ver) for ver in os.listdir(repodir) if ver != ".svn"]
         vlist.sort()
 
         out = []
@@ -337,6 +338,8 @@ class Cgi:
             # copy all of the requisites
             reqsdir = os.path.join(templatedir, REQSDIRNAME)
             for req in os.listdir(reqsdir):
+                if req == ".svn":
+                    continue # skip svn spoor
                 shutil.copyfile(os.path.join(reqsdir, req), os.path.join(dirname, req))
             
             process = subprocess.Popen(#["pdflatex", r"\nonstopmode\input", texname],
