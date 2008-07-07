@@ -64,9 +64,7 @@ import com.google.gwt.user.client.ui.TabListener;
 import com.google.gwt.user.client.ui.SourcesTabEvents;
 
 /**
- * FIXME: note that this requires a hacked version of cherrypy (one-line hack to
- * assume form is urlencoded even if headers say otherwise) Entry point classes
- * define <code>onModuleLoad()</code>.
+ * Entry point classes define <code>onModuleLoad()</code>.
  */
 public class Latiki implements EntryPoint {
 	public static final String FILELIST_URL = "/repo/filelist";
@@ -107,7 +105,6 @@ public class Latiki implements EntryPoint {
 
 	ListBox styleBox = null;
 
-	// TextArea logArea = null;
 	DiffPanel diffpanel = null;
 
 	VerticalPanel diffHolder = null;
@@ -150,15 +147,12 @@ public class Latiki implements EntryPoint {
 	 return encodeURIComponent(arg);
 	 }-*/;
 
-	public native void reloadFrame(String loc) /*-{
-	 $wnd.frames['pdframe'].document.location = loc;                  
-	 }-*/;
 
 	public native boolean confirm(String msg) /*-{
 	 return confirm(msg);
 	 }-*/;
 
-	// fixme: hack!
+	// fixme: this is terrible. See issue 8.
 	public native String getRepoIdInner() /*-{
 	 var pair = $doc.location.search.replace("?","").split(/=/);
 	 if (pair.length < 2) {
@@ -167,14 +161,7 @@ public class Latiki implements EntryPoint {
 	 }
 	 return pair[1].toString();
 	 }-*/;
-
-// 	public native void defineSetBodyMethod() /*-{
-// 	 var savethis = this;
-// 	 $wnd.setBody = function(st) {
-// 	 return savethis.@edu.harvard.eecs.client.Latiki::setBody(Ljava/lang/String;)(st);
-// 	 }                  
-// 	 }-*/;
-
+    
 	public native void defineGetAllMethod() /*-{
 	 var savethis = this;
 	 $wnd.getAll = function() {
@@ -205,7 +192,6 @@ public class Latiki implements EntryPoint {
 		if (textArea != null) {
 			textArea.setText(st);
 		}
-		prevText = st;
 	}
 
 	public String getBody() {
@@ -262,31 +248,7 @@ public class Latiki implements EntryPoint {
 		return dict;
 	}
 
-	/**
-	 * A simple dialog box that displays a message, a Frame, and a close button.
-	 */
-	// private static class MyDialog extends DialogBox implements ClickListener
-	// {
-	// public MyDialog() {
-	// setText("Confirm load");
-	// Button cancelButton = new Button("Cancel", this);
-	// Button continueButton = new Button("Continue", this);
-	// HTML msg = new HTML(
-	// "<center>You have unsaved changes which will be lost if you continue.
-	// Continue?</center>",
-	// true);
-	// HorizontalPanel hp = new HorizontalPanel();
-	// hp.add(cancelButton);
-	// hp.add(continueButton);
-	// VerticalPanel vp = new VerticalPanel();
-	// vp.add(msg);
-	// vp.add(hp);
-	// setWidget(vp);
-	// }
-	// public void onClick(Widget sender) {
-	// hide();
-	// }
-	// }
+
 	/**
 	 * Class for handling the response text associated with a request for a JSON
 	 * object. swiped from GWT's JSON.java. (c) 2006 google
@@ -335,13 +297,7 @@ public class Latiki implements EntryPoint {
 	    }
 	}
 
-//	private class LoadTextHandler implements ResponseTextHandler {
-//		public void onCompletion(String responseText) {
-//			prevText = responseText;
-//			setBody(responseText);
-//			textArea.setEnabled(true);
-//		}
-//	}
+
 
 	private class CompareHandler implements RequestCallback {
 	    public void onError(Request request, java.lang.Throwable exception) {
@@ -421,6 +377,7 @@ public class Latiki implements EntryPoint {
 						.stringValue());
 				updateRevisionHighlight();
 				setBody(getBody()); // update prevText; update textarea with current body
+				prevText = getBody();
 				// if we were in diff mode, close it. also update the textarea
 				// with the current body
 				if (diffHolder != null) {
@@ -448,7 +405,7 @@ public class Latiki implements EntryPoint {
 	    return true;
 	}
 	catch (RequestException e) {
-	    alert("Request failed with exception " + e); // fixme: return an error code!
+	    alert("Request failed with exception " + e); // fixme: return an error code! 
 	    return false;
 	}
     }
@@ -472,7 +429,8 @@ public class Latiki implements EntryPoint {
 	}
 
 	private boolean confirmDataLoss() {
-		if (prevText != null && (!getBody().equals(prevText))) {
+	    String current = getBody();
+		if (prevText != null && (!current.equals(prevText))) {
 			// FIXME! check everything, not just the body!
 			// (avoiding a tedious check of all get* methods here
 			// because they need to be replaced for the configurable-metadata
@@ -519,19 +477,27 @@ public class Latiki implements EntryPoint {
 			}
 
 			setBody(response.get("body").isString().stringValue());
+			prevText = getBody();  // fixme: don't use just prevText for confirmDataLoss; use all metadata
 			titleBox.setText(response.get("title").isString().stringValue());
 			authorsBox
 					.setText(response.get("authors").isString().stringValue());
 			dateBox.setText(response.get("date").isString().stringValue());
 			abstractArea.setText(response.get("abstract").isString()
 					.stringValue());
-			for (int i = 0; i < styleBox.getItemCount(); i++) {
+			boolean setStyle = false;
+			int i;
+			for (i = 0; i < styleBox.getItemCount(); i++) {
 				if (styleBox.getValue(i).equals(
-						response.get("date").isString().stringValue())) {
+						response.get("style").isString().stringValue())) {
 					styleBox.setSelectedIndex(i);
+					setStyle = true;
+					
 				}
 			}
-			// fixme: do something on failure to match!
+			if (styleBox.getItemCount() > 0 && !setStyle) {
+			    alert("Internal error: could not find current style in style list.");
+			}
+
 			currentRevision = response.get("revnum").isString().stringValue();
 			updateRevisionHighlight();
 		}
@@ -636,37 +602,9 @@ public class Latiki implements EntryPoint {
 		treeItem.setState(true);
 	}
 
-//	/*
-//	 * load new content into the textarea
-//	 * 
-//	 */
-//	public void textAreaLoad(String path, String revision) {
-//		if (path.equals(currentPath) && revision.equals(currentRevision)) {
-//			return;
-//			// fixme: fails when currentRevision is the numebr of the current
-//			// revision and revision is "current" or vice-versa...must figure
-//			// out which one is current...
-//		}
-//
-//		if (prevText != null && (!getBody().equals(prevText))) {
-//			if (!confirm("Unsaved changes will be lost. Continue?")) {
-//				return;
-//			}
-//		}
-//		fileLabel.setText("Path: " + path);
-//		currentPath = path;
-//		textArea.setEnabled(false);
-//		textArea.setText("");
-//		String params = "repoid=" + encodeURIComponent(getRepoId()) + "&path="
-//				+ encodeURIComponent(path) + "&revision=" + revision;
-//		HTTPRequest.asyncPost(LOADTEXT_URL, params, new LoadTextHandler());
-//		// fixme: handle errors somehow.
-//
-//	}
 
 	public void loadRevisionListAndCurrentRevision() {
 		revisionPanel.clear();
-		// fixme: should be POST!
 		makeHTTPPOST(REVISIONLIST_URL, "repoid="
 				+ encodeURIComponent(getRepoId()),
 				new RevisionListAndCurrentRevisionHandler());
@@ -675,7 +613,6 @@ public class Latiki implements EntryPoint {
 	// load files into the tree
 	public void loadFileTree() {
 		fileTree.clear();
-		// fixme: should be POST!
 		makeHTTPPOST(FILELIST_URL, "repoid="
 				+ encodeURIComponent(getRepoId()),
 				new JSONHandler());
@@ -759,16 +696,19 @@ public class Latiki implements EntryPoint {
 	formPanel.addFormHandler(new FormHandler() {
 		public void onSubmit(FormSubmitEvent event) {
 		            if (fupload.getFilename().endsWith(".docx")) {
-				// fixme: do more checking.
 				alert("Latiki does not support .docx files. Please use Word's 'Save as...'"+
 				      "feature to save this file as a .doc and upload that.");
+				event.setCancelled(true);
+			    }
+		            if (fupload.getFilename().endsWith(".pdf")) {
+				alert("Latiki does not handle .pdf files.");
 				event.setCancelled(true);
 			    }
 		}
 		public void onSubmitComplete(FormSubmitCompleteEvent event) {
 		    String result = event.getResults();
 		    if (result.length() > 0) {
-			setBody(result); // fixme: catch errors!
+			setBody(result); // fail silently. fixme: catch errors!
 		    }
 		}
 	    });
@@ -835,7 +775,6 @@ public class Latiki implements EntryPoint {
 		DOM.appendChild(pdfpanel.getElement(), iframe);
 
 		defineGetAllMethod();
-		//		defineSetBodyMethod();
 
 		contentTabs.addTabListener(new TabListener() {
 			public void onTabSelected(SourcesTabEvents sender, int tabIndex) {
@@ -844,20 +783,6 @@ public class Latiki implements EntryPoint {
 
 			public boolean onBeforeTabSelected(SourcesTabEvents sender,
 					int tabIndex) {
-				if (tabIndex == 2) { // FIXME! don't hardcode this
-					// pdf panel
-					if (true || !textArea.getText().equals(prevText)) { // fixme!
-						// why
-						// can't
-						// we
-						// switch
-						// back?
-						prevText = textArea.getText();
-						// RootPanel.get().add(new Label("text differs!
-						// a='"+prevText+"' '"+ textArea.getText()+ "'"));
-						reloadFrame(GWT.getModuleBaseURL() + "submit.html");
-					}
-				}
 
 				return true;
 			}
@@ -887,7 +812,6 @@ public class Latiki implements EntryPoint {
 				
 				String crev = compareBox
 						.getValue(compareBox.getSelectedIndex());
-				// fixme! check if current text modified!
 				if (crev.equals(currentRevision)) {
 					alert("You can't compare a revision to itself.");
 					return;
@@ -920,48 +844,14 @@ public class Latiki implements EntryPoint {
 				String params = "repoid=" + encodeURIComponent(getRepoId())
 						+ "&data=" + encodeURIComponent(jsonData.toString())
 						+ "&currentRevision=" + currentRevision + "&user="
-						+ userName; // fixme: make settable
-				// logArea.setText(params);
+						+ userName; 
 				makeHTTPPOST(SAVE_URL, params, new SaveHandler());
 			}
 		});
 		leftPanel.add(saveButton);
 
-		// revisionList.addTreeListener( new TreeListener() {
-		// public void onTreeItemSelected(TreeItem item) {
-		// String vernum = (String) item.getUserObject();
-		// if (vernum != null) {
-		// textAreaLoad(currentPath, vernum);
-		// }
-		// }
-		// public void onTreeItemStateChanged(TreeItem item) {
-		// // do nothing
-		// }
-		// }
-		// );
-
-		// VerticalPanel filepanel = new VerticalPanel();
-		// fileTree = new Tree();
-		// fileTree.addTreeListener( new TreeListener() {
-		// public void onTreeItemSelected(TreeItem item) {
-		// HashMap hm = (HashMap) item.getUserObject();
-		// if (hm != null) {
-		// if ( ((String) hm.get(TYPE)).equals(FILE)) {
-		// textAreaLoad((String) hm.get(PATH), "current");
-		// loadRevisionList((String) hm.get(PATH));
-		// }
-		// }
-		// }
-		// public void onTreeItemStateChanged(TreeItem item) {
-		// // do nothing
-		// }
-		// }
-		// );
-		// filepanel.add(fileTree);
-		// loadFileTree();
-
 		navTabs = new TabPanel();
-		// navTabs.add(filepanel, "Files");
+
 		navTabs.add(leftPanel, "Revisions");
 
 		loadRevisionListAndCurrentRevision();
@@ -972,12 +862,9 @@ public class Latiki implements EntryPoint {
 		base.add(navTabs);
 		base.add(contentTabs);
 
-		// logArea = new TextArea();
-		// logArea.setWidth("40em");
-		// logArea.setVisibleLines(20);
+
 		RootPanel.get().add(base);
-		// RootPanel.get().add(logArea);
-		// insert the username dialog
+
 
 	}
 }
