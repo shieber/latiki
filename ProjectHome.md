@@ -1,0 +1,1 @@
+Latiki is a web-based copyediting and typesetting system designed for the needs of scholarly journals.
